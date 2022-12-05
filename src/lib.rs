@@ -1,3 +1,4 @@
+use std::fmt;
 use std::ops::Index;
 use std::ops::IndexMut;
 use rand::Rng;
@@ -35,6 +36,29 @@ impl Matrix {
     pub fn random(n: usize) -> Self {
         let mut rng = rand::thread_rng();
         Self::new(n, (0..n * n).map(|_| rng.gen_range(-1.0..1.0)).collect())
+    }
+}
+
+impl fmt::Display for Matrix {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        const ELEMENT_SIZE: usize = 5;
+        let padding = self.n * (ELEMENT_SIZE + 1);
+        write!(f, "┌ {:1$} ┐", " ", padding).ok();
+        let mut line = String::new();
+        for (i, value) in self.values.iter().enumerate() {
+            if i % self.n == 0 {    // new line
+                if i > 0 {
+                    write!(f, "{} │", line).ok();
+                }
+                line = String::from("\n│ ");
+            }
+            let element = format!("{:1$.2}", value, ELEMENT_SIZE);
+            line.push_str(&element);
+            line.push(' ');
+            
+        }
+        write!(f, "{} │", line).ok();
+        write!(f, "\n└ {:1$} ┘\n", " ", padding)
     }
 }
 
