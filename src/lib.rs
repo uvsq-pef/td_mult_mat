@@ -39,6 +39,22 @@ impl Matrix {
     }
 }
 
+pub fn multiply(m1: &Matrix, m2: &Matrix) -> Matrix {
+    assert!(m1.n == m2.n);
+
+    let size = m1.n;
+    let mut m_result = Matrix::zero(size);
+
+    for i in 0..size {
+        for j in 0..size {
+            for k in 0..size {
+                m_result[(i, j)] += m1[(i, k)] * m2[(k, j)];
+            }
+        }
+    }
+    m_result
+}
+
 impl fmt::Display for Matrix {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         const ELEMENT_SIZE: usize = 5;
@@ -108,5 +124,24 @@ mod tests {
 
         m[(1,0)] = 5.0;
         assert_eq!(m[(1, 0)], 5.0);
+    }
+
+    #[test]
+    fn should_naively_multiply_random_by_identity() {
+        const SIZE : usize = 16;
+
+        let m1 = Matrix::id(SIZE);
+        let m2 = Matrix::random(SIZE);
+        assert_eq!(multiply(&m1, &m2), m2);
+    }
+
+    #[test]
+    fn should_naively_multiply_two_matrices() {
+        const SIZE : usize = 2;
+
+        let m1 = Matrix::new(SIZE, vec![1.0, 2.0, 3.0, 4.0]);
+        let m2 = Matrix::new(SIZE, vec![4.0, 3.0, 2.0, 1.0]);
+        let m_result = Matrix::new(SIZE, vec![8.0, 5.0, 20.0, 13.0]);
+        assert_eq!(multiply(&m1, &m2), m_result);
     }
 }

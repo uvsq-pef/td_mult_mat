@@ -123,7 +123,13 @@ dimension 256x256.
 [source,sh]
 ----
 $ cargo build
-$ perf stat -e power/energy-pkg/,power/energy-ram/ ./target/debug/matrixmult 256
+$ perf stat -B -r 5 -e power/energy-pkg/,power/energy-ram/ ./target/debug/mult_mat naive 256
+Performance counter stats for 'system wide' (5 runs):
+
+            31,65 Joules power/energy-pkg/    ( +-  0,29% )
+              4,14 Joules power/energy-ram/   ( +-  0,47% )
+
+           3,00771 +- 0,00589 seconds time elapsed  ( +-  0,20% )
 ----
 
 TIP: Lorsque vous faites des mesures, assurez vous que les valeurs mesurées sont significatives et reproductibles. Pour cela vous pouvez répéter la mesure plusieurs fois et vérifier que l'écart type est petit par rapport à la valeur mesurée.
@@ -135,7 +141,14 @@ compilateur et mesurez l’énergie consommée à nouveau.
 [source,sh]
 ----
 $ cargo build --release
-$ perf stat -e power/energy-pkg/,power/energy-ram/ ./target/debug/matrixmult naive 256
+$ perf stat -B -r 5 -e power/energy-pkg/,power/energy-ram/ ./target/release/mult_mat naive 256
+ Performance counter stats for 'system wide' (5 runs):
+
+              0,60 Joules power/energy-pkg/    ( +-  1,90% )
+              0,08 Joules power/energy-ram/    ( +-  2,85% )
+
+          0,056955 +- 0,000415 seconds time elapsed  ( +-  0,73% )
+
 ----
 
 Qu’observez vous ? Comment l’expliquez vous ?
@@ -144,6 +157,12 @@ Qu’observez vous ? Comment l’expliquez vous ?
 . Testez la version optimisée avec des dimensions plus grandes: 512,
 768, 1024, 1280, 1536, 1792 ? Tracez la courbe de temps d’exécution et de
 consommation en fonction de `n`.
+
+[source,sh]
+----
+$ for size in 256 512 768 1024; do perf stat -x\; -r 5 -e power/energy-pkg/ ./target/release/mult_mat naive $size; done 2> tmp.dat
+$ cat tmp.dat | tr ',' '.' > energy-pkg.dat
+----
 
 Comparez les avec les courbes ci-dessous obtenues sur un processeur à six coeurs i7-9850H CPU @ 2.60GHz, avec 12Mb de cache L3.
 
