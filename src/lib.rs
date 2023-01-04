@@ -2,6 +2,7 @@ use std::fmt;
 use std::ops::Index;
 use std::ops::IndexMut;
 use rand::Rng;
+use rayon::prelude::*;
 
 type Element = f64;
 
@@ -87,6 +88,50 @@ pub fn multiply_blocked(a: &Matrix, b: &Matrix) -> Matrix {
             }
         }
     }
+    c
+}
+
+pub fn multiply_iter(a: &Matrix, b: &Matrix) -> Matrix {
+    assert!(a.n == b.n);
+    let n = a.n;
+    let s = Matrix::BLOCK;
+    let nn = a.number_of_blocks();
+    let mut c = Matrix::zero(n);
+
+    let cc = c.values.chunks_mut(n);
+    let aa = a.values.chunks(n);
+
+    cc.zip(aa).for_each(|(cv, av)| {
+        for jj in 0..nn {
+            for (i, c) in cv.iter_mut().enumerate() {
+                for j in (jj * s)..(jj + 1) * s {
+                    *c += av[j] * b.values[j * n + i];
+                }
+            }
+        }
+    });
+    c
+}
+
+pub fn multiply_rayon(a: &Matrix, b: &Matrix) -> Matrix {
+    assert!(a.n == b.n);
+    let n = a.n;
+    let s = Matrix::BLOCK;
+    let nn = a.number_of_blocks();
+    let mut c = Matrix::zero(n);
+
+    let cc = c.values.par_chunks_mut(n);
+    let aa = a.values.par_chunks(n);
+
+    cc.zip(aa).for_each(|(cv, av)| {
+        for jj in 0..nn {
+            for (i, c) in cv.iter_mut().enumerate() {
+                for j in (jj * s)..(jj + 1) * s {
+                    *c += av[j] * b.values[j * n + i];
+                }
+            }
+        }
+    });
     c
 }
 
@@ -187,5 +232,23 @@ mod tests {
         let m1 = Matrix::id(SIZE);
         let m2 = Matrix::random(SIZE);
         assert_eq!(multiply_blocked(&m1, &m2), m2);
+    }
+
+    #[test]
+    fn should_multiply_by_iter_random_by_identity() {
+        const SIZE : usize = 256;
+
+        let m1 = Matrix::id(SIZE);
+        let m2 = Matrix::random(SIZE);
+        assert_eq!(multiply_iter(&m1, &m2), m2);
+    }
+
+    #[test]
+    fn should_multiply_by_rayon_random_by_identity() {
+        const SIZE : usize = 256;
+
+        let m1 = Matrix::id(SIZE);
+        let m2 = Matrix::random(SIZE);
+        assert_eq!(multiply_rayon(&m1, &m2), m2);
     }
 }
