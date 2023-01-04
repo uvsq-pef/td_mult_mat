@@ -185,7 +185,7 @@ Pour vérifier si notre implémentation souffre de problèmes de localité mémo
 
 [source, sh]
 ----
-$ perf stat -e LLC-loads,LLC-stores ./target/release/matrixmult 1280
+% perf stat -r 5 -e LLC-loads,LLC-stores ./target/release/mult_mat naive 512
 ----
 
 - LLC-loads mesure le nombre de lectures depuis le dernier niveau de cache

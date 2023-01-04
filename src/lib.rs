@@ -12,6 +12,8 @@ pub struct Matrix {
 }
 
 impl Matrix {
+    const BLOCK: usize = 64;
+
     pub fn new(n: usize, values: Vec<Element>) -> Self {
         assert_eq!(n * n, values.len());
 
@@ -37,6 +39,16 @@ impl Matrix {
         let mut rng = rand::thread_rng();
         Self::new(n, (0..n * n).map(|_| rng.gen_range(-1.0..1.0)).collect())
     }
+
+    pub fn number_of_blocks(&self) -> usize {
+        assert_eq!(
+            self.n % Matrix::BLOCK,
+            0,
+            "matrix size must be a multiple of the block size"
+        );
+
+        self.n / Matrix::BLOCK
+    }
 }
 
 pub fn multiply(m1: &Matrix, m2: &Matrix) -> Matrix {
@@ -53,6 +65,29 @@ pub fn multiply(m1: &Matrix, m2: &Matrix) -> Matrix {
         }
     }
     m_result
+}
+
+pub fn multiply_blocked(a: &Matrix, b: &Matrix) -> Matrix {
+    assert!(a.n == b.n);
+    let n = a.n;
+    let s = Matrix::BLOCK;
+    let nn = a.number_of_blocks();
+    let mut c = Matrix::zero(n);
+
+    for ii in 0..nn {
+        for jj in 0..nn {
+            for kk in 0..nn {
+                for i in ii * s..(ii + 1) * s {
+                    for j in jj * s..(jj + 1) * s {
+                        for k in kk * s..(kk + 1) * s {
+                            c[(i, j)] += a[(i, k)] * b[(k, j)];
+                        }
+                    }
+                }
+            }
+        }
+    }
+    c
 }
 
 impl fmt::Display for Matrix {
@@ -143,5 +178,14 @@ mod tests {
         let m2 = Matrix::new(SIZE, vec![4.0, 3.0, 2.0, 1.0]);
         let m_result = Matrix::new(SIZE, vec![8.0, 5.0, 20.0, 13.0]);
         assert_eq!(multiply(&m1, &m2), m_result);
+    }
+
+    #[test]
+    fn should_multiply_by_bloc_random_by_identity() {
+        const SIZE : usize = 256;
+
+        let m1 = Matrix::id(SIZE);
+        let m2 = Matrix::random(SIZE);
+        assert_eq!(multiply_blocked(&m1, &m2), m2);
     }
 }
