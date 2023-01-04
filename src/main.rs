@@ -15,7 +15,12 @@ fn main() {
     let m2 = Matrix::random(size);
 
     match arg1.as_str() {
-        "naive" => multiply(&m1, &m2),
-        _ => panic!("<algo> should be either \"naive\""),
+        "naive" => {
+            multiply(&m1, &m2);
+        }
+        "display" => {
+            println!("{}multiplyied by\n{}gives\n{}", m1, m2, multiply(&m1, &m2));
+        }
+        _ => panic!("<algo> should be either \"naive\" or \"display\""),
     };
 }
