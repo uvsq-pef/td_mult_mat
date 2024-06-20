@@ -93,6 +93,23 @@ where
     c
 }
 
+pub fn multiply_vectorized<T>(a: &Matrix<T>, b: &Matrix<T>) -> Matrix<T>
+where
+    T: Zero + Signed + Copy,
+{
+    assert!(a.n == b.n);
+    let n = a.n;
+    let mut c = Matrix::<T>::zero(n);
+    for i in 0..n {
+        for k in 0..n {
+            for j in 0..n {
+                c[(i, j)] = c[(i, j)] + a[(i, k)] * b[(k, j)];
+            }
+        }
+    }
+    c
+}
+
 pub fn multiply_blocked<T>(a: &Matrix<T>, b: &Matrix<T>) -> Matrix<T>
 where
     T: Zero + Signed + Copy,
@@ -106,9 +123,9 @@ where
     for ii in 0..nn {
         for jj in 0..nn {
             for kk in 0..nn {
-                for i in ii * s..(ii + 1) * s {
-                    for j in jj * s..(jj + 1) * s {
-                        for k in kk * s..(kk + 1) * s {
+                for i in (ii * s)..(ii + 1) * s {
+                    for j in (jj * s)..(jj + 1) * s {
+                        for k in (kk * s)..(kk + 1) * s {
                             c[(i, j)] = c[(i, j)] + a[(i, k)] * b[(k, j)];
                         }
                     }
@@ -119,29 +136,22 @@ where
     c
 }
 
-pub fn multiply_iter<T>(a: &Matrix<T>, b: &Matrix<T>) -> Matrix<T>
+fn multiply_block<T>(n: usize, nn: usize, a: &[T], b: &[T], c: &mut [T])
 where
     T: Zero + Signed + Copy,
 {
-    assert!(a.n == b.n);
-    let n = a.n;
     let s = Matrix::<T>::BLOCK;
-    let nn = a.number_of_blocks();
-    let mut c = Matrix::<T>::zero(n);
-
-    let cc = c.values.chunks_mut(n);
-    let aa = a.values.chunks(n);
-
-    cc.zip(aa).for_each(|(cv, av)| {
+    for kk in 0..nn {
         for jj in 0..nn {
-            for (i, c) in cv.iter_mut().enumerate() {
-                for j in (jj * s)..(jj + 1) * s {
-                    *c = *c + av[j] * b.values[j * n + i];
+            for i in 0..s {
+                for k in (kk * s)..(kk + 1) * s {
+                    for j in (jj * s)..(jj + 1) * s {
+                        c[i * n + j] = c[i * n + j] + a[i * n + k] * b[k * n + j];
+                    }
                 }
             }
         }
-    });
-    c
+    }
 }
 
 pub fn multiply_rayon<T>(a: &Matrix<T>, b: &Matrix<T>) -> Matrix<T>
@@ -150,22 +160,13 @@ where
 {
     assert!(a.n == b.n);
     let n = a.n;
-    let s = Matrix::<T>::BLOCK;
-    let nn = a.number_of_blocks();
     let mut c = Matrix::<T>::zero(n);
 
-    let cc = c.values.par_chunks_mut(n);
-    let aa = a.values.par_chunks(n);
+    let cc = c.values.par_chunks_mut(n * Matrix::<T>::BLOCK);
+    let aa = a.values.par_chunks(n * Matrix::<T>::BLOCK);
 
-    cc.zip(aa).for_each(|(cv, av)| {
-        for jj in 0..nn {
-            for (i, c) in cv.iter_mut().enumerate() {
-                for j in (jj * s)..(jj + 1) * s {
-                    *c = *c + av[j] * b.values[j * n + i];
-                }
-            }
-        }
-    });
+    cc.zip(aa)
+        .for_each(|(cv, av)| multiply_block(n, a.number_of_blocks(), av, &b.values, cv));
     c
 }
 
@@ -199,11 +200,11 @@ mod tests {
     }
 
     #[test]
-    fn iter_identity() {
+    fn vectorized_identity() {
         let n = Matrix::<f64>::BLOCK * 3;
         let a = Matrix::<f64>::id(n);
         let b = Matrix::<f64>::random(n);
-        assert_eq!(multiply_iter(&a, &b), b);
+        assert_eq!(multiply_vectorized(&a, &b), b);
     }
 
     #[test]
@@ -220,8 +221,8 @@ mod tests {
         let a = Matrix::<f64>::random(n);
         let b = Matrix::<f64>::random(n);
         let r = multiply(&a, &b);
+        assert_eq!(r, multiply_vectorized(&a, &b));
         assert_eq!(r, multiply_blocked(&a, &b));
-        assert_eq!(r, multiply_iter(&a, &b));
         assert_eq!(r, multiply_rayon(&a, &b));
     }
 }
