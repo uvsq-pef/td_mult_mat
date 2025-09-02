@@ -155,6 +155,26 @@ image:mesures.svg[Multiplication naïve sur un core-i7 2.60GHz avec un L3 de 12M
     - `lstopo` pour examiner la hiérarchie mémoire
     - `cat /proc/cpuinfo` pour avoir les caractéristiques du processeur
 
+=== Vectorisation
+
+Le processeur que vous utilisez possède certainement des unités de calcul
+vectorielles. Ces unités permettent de faire des opérations sur plusieurs
+données en une seule instruction. 
+
+Néanmoins, pour que le compilateur puisse utiliser ces unités, il faut que les
+données soient alignées en mémoire. Comme vu en cours, des transformations de
+boucles permettent parfois d'éliminer le stride et de rendre les accès mémoire
+contigus.
+
+. Modifiez l’ordre des boucles dans votre implémentation de la
+multiplication matricielle de manière à ce que la boucle sur `j` soit
+la boucle la plus interne. Soit un ordre des boucles `i`, `k`, `j`.
+
+. Mesurez à nouveau la consommation énergétique et le temps d’exécution
+pour différentes tailles de matrices. Comparez les résultats avec ceux de
+la version précédente.
+
+. Que constatez vous ? Pourquoi ?
 
 === Cache blocking
 
@@ -205,10 +225,6 @@ ces deux méthodes pour répartir un calcul sur les lignes de `c` et les lignes 
 ==== Pour aller plus loin...
 
 Le produit de matrices que nous avons implémenté est efficace mais il est possible de pousser les optimisations encore plus loin. Voici quelques références et pistes, si ce travail vous intéresse:
-
-- Le compilateur actuel Rust ne réussit pas à vectoriser correctement le produit de matrices. Néanmoins il est possible d'utiliser des (https://doc.rust-lang.org/beta/core/arch/)[appels intrinsèques] pour vectoriser manuellement et tirer parti des instructions SIMD du processeur.
-
-TIP: La vectorisation automatique est un des points faibles de Rust. En raison de vérifications plus poussées, comme les débordement de tableaux, Rust n'arrive pas toujours à bien vectoriser une boucle. Au contraire des langages comme le C ou le Fortran, offrent moins de garanties sur la correction mémoire, mais vectorisent généralement mieux le code.
 
 - Plutôt qu'utiliser des techniques de blocking, qui doivent être paramétrisées par une taille de bloc fixe; il est possible d'implementer la multiplication matricielle pour préserver la localité indépendamment de  l'échelle. C'est ce qu'on appelle en anglais un https://dspace.mit.edu/bitstream/handle/1721.1/80568/43558192-MIT.pdf[algorithme _cache-oblivious_]. Pour la multiplication de matrices, un tel algorithme peut être obtenu en réordonnant les éléments selon l'ordre donné par la https://fr.wikipedia.org/wiki/Courbe_de_Lebesgue[courbe de Lebesgue]. Cela permet d'obtenir des https://github.com/rayon-rs/rayon/blob/master/rayon-demo/src/matmul/mod.rs[implémentations très efficaces] pour des matrices dont la dimension est une puissance de deux.
 
