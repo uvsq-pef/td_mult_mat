@@ -153,6 +153,32 @@ $ perf stat -B -r 5 -e power/energy-pkg/,power/energy-ram/ ./target/release/mult
 
 Qu’observez vous ? Comment l’expliquez vous ?
 
+[cols="1,1,1,1"]
+|===
+|Mesure |Debug |Release |Ratio
+
+|Temps (s)
+|3,00
+|0,05
+|x60
+
+|Énergie CPU (J)
+|31,65
+|0,60
+|x52
+
+|Énergie RAM (J)
+|4,14
+|0,08
+|x52
+
+|=== 
+
+* Concernant le temps d'exécution, Rust en _debug_ désactive les optimisations, garde des checks supplémentaires, inhibe la vectorisation et génère beaucoup de code inutile pour ce type de calcul.
+En _release_, le compilateur vectorise, déroule, optimise l’accès mémoire et élimine les surcoûts.
+* La réduction d’énergie consommée suit presque la réduction du temps.
+Le programme devient beaucoup plus efficient par unité de calcul, pas seulement plus rapide.
+
 [start=5]
 . Testez la version optimisée avec des dimensions plus grandes: 512,
 768, 1024, 1280, 1536, 1792 ? Tracez la courbe de temps d’exécution et de
@@ -203,6 +229,25 @@ TIP: Vérifiez bien que la dimension de vos matrices est un multiple de la taill
 
 . Que concluez vous ? Pourquoi la version bloquée se révèle plus efficace ?
 
+[cols="1,1,1,1,1,1,1", options="header"]
+|===
+|Taille |Version |Temps (s) |CPU (J) |RAM (J) |LLC-loads |LLC-stores
+
+|512    |Naïf    |0,310     |8,64    |0,48    |13,7 M    |O,245 M
+|512    |Blocked |0,057     |1,31    |0,07    |4,5 M     |0,108 M
+|1024   |Naïf    |3,026     |82,36   |6,82    |1,6 M     |6,8 M
+|1024   |Blocked |0,468     |11,22   |0,59    |61 M      |0,640 M
+|2048   |Naïf    |53,607    |1160,66 |163,48  |15 Milliards|163,48 M
+|2048   |Blocked |3,701     |90,99   |5,02    |530 M     |2,796 M
+
+|===
+
+* L'algorithme par blocs améliore presque proportionnellement le temps et la consommation.
+* L'utilisation du cache est grandement améliorée, avec une réduction significative des accès au dernier niveau de cache (LLC).
+* L’algorithme naïf est essentiellement memory-bound, c’est-à-dire que la vitesse d’exécution est limitée par la vitesse d’accès à la mémoire principale.
+* Le blocage rétablit une exécution compute-bound.
+* L’énergie RAM, très sensible aux accès, chute drastiquement
+
 === Parallélisation
 
 Si notre processeur possède plusieurs cœurs de calcul, nous pouvons paralléliser l'algorithme de manière à le rendre encore plus efficace.
@@ -218,6 +263,24 @@ ces deux méthodes pour répartir un calcul sur les lignes de `c` et les lignes 
 - Pour itérer de manière synchronisé sur les lignes des deux itérateurs vous pouvez utiliser https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.zip[la méthode `zip`].
 
 . Mesurez l'énergie consommée par l'implémentation parallèle. Comparez les mesures aux expériences précédentes. Que concluez vous ?
+
+[cols="1,1,1,1,1,1,1", options="header"]
+|===
+|Taille |Version |Temps (s) |CPU (J) |RAM (J) |LLC-loads |LLC-stores
+
+|1024 |Blocked |0,468 |11,22 |0,59 |61 557 745 |640 222
+|1024 |Rayon |0,097 |6,72 |0,15 |45 492 963 |961 009
+|2048 |Blocked |3,701 |90,99 |5,02 |530 978 182 |2 796 697
+|2048 |Rayon |0,643 |54,77 |1,33 |388 533 541 |3 984 485
+
+|===
+
+* La parallélisation apporte un gain massif de temps d'exécution.
+* La consommation CPU est réduite mais le parallélisme est tout de même coûteux.
+* Le parallélisme impacte peu la consommation RAM.
+Elle est donc réduite de façon importante.
+* LLC-loads diminuent par unité de temps grâce à la répartition du travail sur les caches des différents cœurs.
+* LLC-stores augmentent car chaque thread écrit ses blocs, mais globalement le cache reste efficace.
 
 . Rajoutez du cache-blocking dans l'implémentation parallèle et mesurez l'effet sur la consommation.
 
